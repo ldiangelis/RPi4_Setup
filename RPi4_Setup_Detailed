@@ -1,0 +1,135 @@
+# Setup RPi 64-bit OS (Bullseye) for Computer Vision Projects
+
+1. Update and Upgrade the Pi and remove unecessary packages
+sudo apt update
+sudo apt full-upgrade
+sudo apt autoremove
+
+# Pro tip: run in a single command using sh -c which reads commands from a command string
+sudo sh -c "apt update && apt full-upgrade && autoremove"
+
+# reboot to apply changes
+sudo reboot
+
+2. Install zram to replace swapfile
+
+# We do this so we can maintain the integrity of our microSD card
+  during ram intensive processes. If using RPi4 with 8GB, you can skip this step.
+
+# Remove dphys-swapfile
+sudo /etc/init.d/dphys-swapfile stop
+sudo apt remove --purge dphys-swapfile
+sudo rm /var/swap
+	
+# Install zram
+sudo wget -O /usr/bin/zram.sh https://raw.githubusercontent.com/novaspirit/rpi_zram/master/zram.sh
+	
+# Set it to autoload by adding the zram.sh path (add before the 0 at bottom of file) and save it
+sudo nano /etc/rc.local
+/usr/bin/zram.sh &
+
+# Make the file executable
+sudo chmod +x /usr/bin/zram.sh
+
+# Modify the file - add the following line below mem=$(( $totalmem * 1024 ))
+sudo nano /usr/bin/zram.sh
+mem=$(( $totalmem * 512 ))
+	
+# Save the file and reboot to apply changes
+	
+# Set swapon and validate memory size
+swapon -s
+free -m
+
+3. Prepare Pi for Overclock
+
+# Install latest eeprom firmware to decrease Pi themral temps
+sudo apt install rpi-eeprom
+sudo rpi-eeprom-update
+sudo rpi-eeprom-update -a
+sudo reboot
+		
+4. Overclock the Pi to 2100 MHz
+	
+# Add the following options to the config file
+sudo nano /boot/config.txt
+
+arm_freq=2100 # Overclock to 2100 MHz
+over_voltage=6 # Supply extra voltage so we can run our overclock
+gpu_mem=128 # Allocate more GPU memory for our processing tasks
+
+# Save the file and reboot
+
+5. Monitor CPU OC - During processing open a new terminal to view CPU clock/volts to verify
+   our config modifications have been applied correctly.
+	
+# Monitor CPU clock
+watch -n1 vcgencmd measure_clock arm
+		
+# Monitor System Voltage
+watch -n1 vcgencmd measure_volts core
+		
+# Get info about current Pi status
+vcgencmd get_config int
+
+6. Add widgets for Temp, CPU, and RAM usage via Panel Preferences to monitor system resources -
+   this is useful when running resouce intensive tasks.
+
+# In the Add section, select the following
+CPU Temperature Monitor
+CPU Usage Monitor
+Resource Monitor
+  - Right-click the box and select RAM
+
+# Set the location for each widget by moving the app up or down the list 
+
+7. Stress Test to verify our Pi does not crash or throttle from overclock
+
+# Upgrade pip and install Stress and Stressberry
+sudo apt install stress
+sudo -H pip3 install --upgrade pip 
+sudo -H pip3 install stressberry
+		
+# Make a directory to save the outputs
+mkdir ~/stressTests
+		
+# Run the test and save the output
+stressberry-run ~/stressTests/out2100.dat
+		
+# Plot and save the figure
+stressberry-plot ~/stressTests/out2100.dat -o ~/stressTests/out2100.png
+		
+# Output
+For reference, This test used a GeeekPi Low-Profile CPU fan - highly recommended.
+
+Indoor Temp During Test == 25 C
+Max temp during test == 47.2 C
+
+8. Benchmark the storage (optional step, primarily if you want to compare microSD and SSD storage types)
+
+# Access Raspberry Pi Diagnostics and run it
+Verify no issues with test (pass/fail)
+If evaluating more than one storage type, save the outputs and plot the values to compare
+
+9. Set the screen blank correctly for long duration compiling
+
+# Access the screen preferences
+Turn off screen blanking
+
+10. Considerations
+
+Overclocking the Pi significantly improves inference times when running Computer Vision
+workloads. Make sure you have a good CPU cooler so you do not throttle the Pi otherwise 
+clock speeds will dip to core_freq=500 MHz until temps stabilize!
+
+Here, we manually set the over_voltage=6 so we always supply steady power,
+this removes the dynamic setting that changes based on load.
+Assuming temp profiles are decent and there is no throttling, 
+this should allow a stable OC to 2100 MHz, however you may want to modify the values based on your 
+setup and project requirements. Additionally, using over_voltage of <= 6 maintains the warranty of your Pi.
+
+Should you wish to move beyond 2100 MHz, you will have to modify the over_voltage > 6.
+To enable over_voltage > 6 you must use the force_turbo=1 option. 
+
+11. Once you have completed these steps check out the TFLite and PyTorch Computer Vision tutorials!
+
