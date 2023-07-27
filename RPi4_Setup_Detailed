@@ -6,7 +6,7 @@ sudo apt full-upgrade
 sudo apt autoremove
 
 # Pro tip: run in a single command using sh -c which reads commands from a command string
-sudo sh -c "apt update && apt full-upgrade && autoremove"
+sudo sh -c "apt update && apt full-upgrade && apt autoremove"
 
 # reboot to apply changes
 sudo reboot
