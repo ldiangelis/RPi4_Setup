@@ -1,0 +1,61 @@
+# Basic Install Script that only includes commands, for details 
+# see RPi4_Setup_Detailed - the detailed file will be useful for
+# installing zram
+
+# Update and Upgrade the Pi and remove unecessary packages
+sudo sh -c "apt update && apt full-upgrade && autoremove"
+sudo reboot
+
+# Remove dphys-swapfile
+sudo /etc/init.d/dphys-swapfile stop
+sudo apt-get remove --purge dphys-swapfile
+sudo rm /var/swap
+
+# Install zram
+sudo wget -O /usr/bin/zram.sh https://raw.githubusercontent.com/novaspirit/rpi_zram/master/zram.sh
+
+# Modify file 
+sudo nano /etc/rc.local
+/usr/bin/zram.sh &
+
+# Make it executable and modify it
+sudo chmod +x /usr/bin/zram.sh
+sudo nano /usr/bin/zram.sh
+mem=$(( $totalmem * 512 ))
+sudo reboot
+
+# Swapon and verify memory size
+swapon -s
+free -m 
+
+# Install latest eeprom firmware
+sudo apt install rpi-eeprom
+sudo rpi-eeprom-update
+sudo rpi-eeprom-update -a
+sudo reboot
+
+# Modify the config file options
+sudo nano /boot/config.txt
+arm_freq=2100
+over_voltage=6 
+gpu_mem=128 
+sudo reboot
+
+# Verify config OC was applied
+watch -n1 vcgencmd measure_clock arm
+watch -n1 vcgencmd measure_volts core
+vcgencmd get_config int
+
+# Upgrade pip and install Stress and Stressberry
+sudo apt install stress
+sudo -H pip3 install --upgrade pip 
+sudo -H pip3 install stressberry
+
+# Make a directory for the test outputs
+mkdir ~/stressTests
+
+# Run the test, save the output, and figure
+stressberry-run ~/stressTests/out2100.dat
+stressberry-plot ~/stressTests/out2100.dat -o ~/stressTests/out2100.png
+
+
